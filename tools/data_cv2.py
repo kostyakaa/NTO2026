@@ -1,4 +1,3 @@
-# dataset_collect_opencv.py
 import os
 import time
 import cv2
