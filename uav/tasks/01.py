@@ -4,11 +4,19 @@ from pioneer_sdk2 import Pioneer, Event
 pioneer = Pioneer()
 
 points_x_y = {
-    0: [1, 1],
-    1: [1, 2],
-    2: [3, 4],
+    0: [0.5, 0.5],
+    1: [0.5, 1.5],
+    2: [0.5, 2.5],
+
+    3: [1.5, 2.5],
+    4: [1.5, 1.5],
+    5: [1.5, 0.5],
+
+    6: [2.5, 0.5],
+    7: [2.5, 1.5],
+    8: [2.5, 2.5],
 }
-z = 2
+z = 1
 
 def on_point_reached():
     print("POINT_REACHED")
