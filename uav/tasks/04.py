@@ -1,46 +1,69 @@
-# 03_flight_blocking_ai_send.py
 import time
-import requests
+import math
 from pioneer_sdk2 import Pioneer, Camera, Event
 from pioneer_rknn import Yolo
-
-SERVER_URL = "http://192.168.1.10:8000/detections"
-DRONE_ID = "pioneer-01"
 
 pioneer = Pioneer()
 camera = Camera()
 yolo = Yolo(model_name="yolov11n")
 
 points_x_y = {
-    0: [1, 1],
-    1: [1, 2],
-    2: [3, 4],
-}
-z = 2
+    0: [0.5, 0.5],
+    1: [0.5, 1.5],
+    2: [0.5, 2.5],
 
+    3: [1.5, 2.5],
+    4: [1.5, 1.5],
+    5: [1.5, 0.5],
+
+    6: [2.5, 0.5],
+    7: [2.5, 1.5],
+    8: [2.5, 2.5],
+}
+
+z = 2.0
 current_idx = -1
+
+FOV_X_DEG = 70.0
+FOV_Y_DEG = 55.0
+
+def bbox_center(det):
+    if isinstance(det, dict):
+        x1, y1, x2, y2 = det["x1"], det["y1"], det["x2"], det["y2"]
+    else:
+        x1, y1, x2, y2 = det[0], det[1], det[2], det[3]
+    return (0.5 * (x1 + x2), 0.5 * (y1 + y2))
+
+def pixel_to_xy(u, v, w, h, x0, y0, z_m):
+    Wm = 2.0 * z_m * math.tan(math.radians(FOV_X_DEG) * 0.5)
+    Hm = 2.0 * z_m * math.tan(math.radians(FOV_Y_DEG) * 0.5)
+    du = (u - 0.5 * w) * (Wm / w)
+    dv = (v - 0.5 * h) * (Hm / h)
+    dx = dv
+    dy = -du
+    return (x0 + dx, y0 + dy)
 
 def on_point_reached():
     global current_idx
+
     frame = camera.get_cv_frame(timeout=1.0)
-    det = yolo(frame) if frame is not None else []
+    dets = yolo(frame) if frame is not None else None
 
-    x, y = points_x_y[current_idx]
-    payload = {
-        "drone_id": DRONE_ID,
-        "ts": time.time(),
-        "point_index": current_idx,
-        "point": {"x": x, "y": y, "z": z},
-        "detections": det,
-    }
+    x0, y0 = points_x_y[current_idx]
 
-    try:
-        requests.post(SERVER_URL, json=payload, timeout=2.0)
-    except Exception:
-        pass
+    if frame is None or not dets:
+        print({"idx": current_idx, "point": (x0, y0), "detections": dets, "xy": None})
+        return
+
+    u, v = bbox_center(dets[0])
+    h, w = frame.shape[:2]
+    x, y = pixel_to_xy(u, v, w, h, x0, y0, z)
+
+    print({"idx": current_idx, "point": (x0, y0), "det_center": (float(u), float(v)), "xy": (float(x), float(y)), "detections": dets})
 
 def main():
     global current_idx
+
     pioneer.subscribe(on_point_reached, Event.POINT_REACHED)
 
     pioneer.arm()
