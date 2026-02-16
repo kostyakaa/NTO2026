@@ -1,0 +1,31 @@
+import os
+import time
+import cv2
+from pioneer_sdk2 import Camera
+
+OUT_DIR = "dataset_images"
+FPS = 5
+
+def main():
+    os.makedirs(OUT_DIR, exist_ok=True)
+
+    cam = Camera()
+    i = 0
+    dt = 1.0 / FPS
+
+    while True:
+        t0 = time.time()
+        frame = cam.get_cv_frame(timeout=1.0)
+        if frame is None:
+            continue
+
+        path = os.path.join(OUT_DIR, f"{i:06d}.jpg")
+        cv2.imwrite(path, frame)
+        print(path)
+        i += 1
+
+        while time.time() - t0 < dt:
+            time.sleep(0.001)
+
+if __name__ == "__main__":
+    main()
